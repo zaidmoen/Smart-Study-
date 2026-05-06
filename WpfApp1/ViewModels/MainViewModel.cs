@@ -1,0 +1,574 @@
+using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Globalization;
+using System.Linq;
+using System.Runtime.CompilerServices;
+using System.Windows;
+using System.Windows.Data;
+using System.Windows.Media;
+using System.Windows.Threading;
+using System.Windows.Input;
+using WpfApp1.Models;
+using WpfApp1.Services;
+
+namespace WpfApp1.ViewModels
+{
+    public class MainViewModel : INotifyPropertyChanged
+    {
+        private static readonly CultureInfo ArabicCulture = new CultureInfo("ar-EG") { DateTimeFormat = { Calendar = new GregorianCalendar() } };
+        private static readonly string[] AccentPalette =
+        {
+            "#FF14B8A6",
+            "#FF2563EB",
+            "#FFF97316",
+            "#FF8B5CF6",
+            "#FFEF4444"
+        };
+        private static readonly string[] SoftAccentPalette =
+        {
+            "#FFE8F8F6",
+            "#FFEFF6FF",
+            "#FFFFF3E8",
+            "#FFF5F0FF",
+            "#FFFFEFEF"
+        };
+        private readonly DispatcherTimer _clockTimer;
+        private readonly StorageService _storageService;
+
+        private int _recommendationOffset;
+        private string _currentDateText;
+        private string _currentTimeText;
+        private string _smartRecommendationTitle;
+        private string _smartRecommendationBody;
+        private string _completedTasksText;
+        private string _pendingTasksText;
+        private string _urgentTasksText;
+        private string _plannedMinutesText;
+        private string _taskListSubtitle;
+        private string _dailyMissionText;
+        private string _overallProgressText;
+        private string _overallProgressSubtitle;
+        private double _overallProgressWidth;
+        private string _studyStreakText;
+        private string _momentumText;
+        private string _focusLaneText;
+        private string _nextSessionText;
+        private string _taskHeatText;
+        private string _winningSubjectText;
+        private string _recoverySubjectText;
+        private string _studentJoyTitle;
+        private string _studentJoyBody;
+        private string _studentRewardText;
+        private string _studentCompanionText;
+        private string _newTaskTitle;
+        private string _selectedSubjectOption;
+        private string _selectedDurationOption;
+        private string _selectedPriorityOption;
+        private bool _isTaskListEmpty;
+
+        private object _currentView;
+
+        public MainViewModel()
+        {
+            Subjects = new ObservableCollection<SubjectOverview>();
+            TodaySessions = new ObservableCollection<StudySession>();
+            StudyTasks = new ObservableCollection<StudyTask>();
+            PriorityOptions = new ObservableCollection<string> { "عادي", "مهم", "عاجل" };
+            
+            _storageService = new StorageService();
+            
+            LoadData();
+            ConfigureTaskSorting();
+            ResetQuickAddFields();
+            RefreshDashboard();
+
+            _clockTimer = new DispatcherTimer { Interval = TimeSpan.FromMinutes(1) };
+            _clockTimer.Tick += (s, e) => RefreshDashboard();
+            _clockTimer.Start();
+
+            AddTaskCommand = new RelayCommand(o => AddTask());
+            GenerateSmartPlanCommand = new RelayCommand(o => { _recommendationOffset++; RefreshDashboard(); });
+            StartFocusCommand = new RelayCommand(o => StartFocus());
+            NavigateCommand = new RelayCommand(o => CurrentView = o);
+
+            CurrentView = "Dashboard"; // Initial view
+        }
+
+        public object CurrentView { get => _currentView; set => SetProperty(ref _currentView, value); }
+        public ICommand NavigateCommand { get; }
+
+        public ObservableCollection<SubjectOverview> Subjects { get; }
+        public ObservableCollection<StudySession> TodaySessions { get; }
+        public ObservableCollection<StudyTask> StudyTasks { get; }
+        public ObservableCollection<string> PriorityOptions { get; }
+
+        public ICommand AddTaskCommand { get; }
+        public ICommand GenerateSmartPlanCommand { get; }
+        public ICommand StartFocusCommand { get; }
+
+        // Properties (Getters/Setters)
+        public string CurrentDateText { get => _currentDateText; set => SetProperty(ref _currentDateText, value); }
+        public string CurrentTimeText { get => _currentTimeText; set => SetProperty(ref _currentTimeText, value); }
+        public string SmartRecommendationTitle { get => _smartRecommendationTitle; set => SetProperty(ref _smartRecommendationTitle, value); }
+        public string SmartRecommendationBody { get => _smartRecommendationBody; set => SetProperty(ref _smartRecommendationBody, value); }
+        public string CompletedTasksText { get => _completedTasksText; set => SetProperty(ref _completedTasksText, value); }
+        public string PendingTasksText { get => _pendingTasksText; set => SetProperty(ref _pendingTasksText, value); }
+        public string UrgentTasksText { get => _urgentTasksText; set => SetProperty(ref _urgentTasksText, value); }
+        public string PlannedMinutesText { get => _plannedMinutesText; set => SetProperty(ref _plannedMinutesText, value); }
+        public string TaskListSubtitle { get => _taskListSubtitle; set => SetProperty(ref _taskListSubtitle, value); }
+        public string DailyMissionText { get => _dailyMissionText; set => SetProperty(ref _dailyMissionText, value); }
+        public string OverallProgressText { get => _overallProgressText; set => SetProperty(ref _overallProgressText, value); }
+        public string OverallProgressSubtitle { get => _overallProgressSubtitle; set => SetProperty(ref _overallProgressSubtitle, value); }
+        public double OverallProgressWidth { get => _overallProgressWidth; set => SetProperty(ref _overallProgressWidth, value); }
+        public string StudyStreakText { get => _studyStreakText; set => SetProperty(ref _studyStreakText, value); }
+        public string MomentumText { get => _momentumText; set => SetProperty(ref _momentumText, value); }
+        public string FocusLaneText { get => _focusLaneText; set => SetProperty(ref _focusLaneText, value); }
+        public string NextSessionText { get => _nextSessionText; set => SetProperty(ref _nextSessionText, value); }
+        public string TaskHeatText { get => _taskHeatText; set => SetProperty(ref _taskHeatText, value); }
+        public string WinningSubjectText { get => _winningSubjectText; set => SetProperty(ref _winningSubjectText, value); }
+        public string RecoverySubjectText { get => _recoverySubjectText; set => SetProperty(ref _recoverySubjectText, value); }
+        public string StudentJoyTitle { get => _studentJoyTitle; set => SetProperty(ref _studentJoyTitle, value); }
+        public string StudentJoyBody { get => _studentJoyBody; set => SetProperty(ref _studentJoyBody, value); }
+        public string StudentRewardText { get => _studentRewardText; set => SetProperty(ref _studentRewardText, value); }
+        public string StudentCompanionText { get => _studentCompanionText; set => SetProperty(ref _studentCompanionText, value); }
+        public string NewTaskTitle { get => _newTaskTitle; set => SetProperty(ref _newTaskTitle, value); }
+        public string SelectedSubjectOption { get => _selectedSubjectOption; set => SetProperty(ref _selectedSubjectOption, value); }
+        public string SelectedDurationOption { get => _selectedDurationOption; set => SetProperty(ref _selectedDurationOption, value); }
+        public string SelectedPriorityOption { get => _selectedPriorityOption; set => SetProperty(ref _selectedPriorityOption, value); }
+        public bool IsTaskListEmpty { get => _isTaskListEmpty; set => SetProperty(ref _isTaskListEmpty, value); }
+
+        private void AddTask()
+        {
+            string title = (NewTaskTitle ?? string.Empty).Trim();
+            string subject = (SelectedSubjectOption ?? string.Empty).Trim();
+            if (string.IsNullOrWhiteSpace(title)) return;
+
+            if (string.IsNullOrWhiteSpace(subject)) subject = "عام";
+
+            string durationText = SelectedDurationOption;
+            if (!durationText.Contains("دقيقة") && durationText.Any(char.IsDigit)) durationText += " دقيقة";
+            else if (string.IsNullOrWhiteSpace(durationText)) durationText = "30 دقيقة";
+
+            var task = new StudyTask
+            {
+                Title = title,
+                Subject = subject,
+                EstimateText = durationText,
+                PriorityLabel = SelectedPriorityOption,
+                DueDate = ResolveDueDate(SelectedPriorityOption),
+                StudyMode = BuildStudyMode(subject),
+                ConfidencePercent = 70,
+                PriorityWeight = ResolvePriorityWeight(SelectedPriorityOption),
+                AccentBrush = ResolveAccentBrush(subject),
+                SoftAccentBrush = ResolveSoftAccentBrush(subject)
+            };
+
+            task.PropertyChanged += (s, e) => { if (e.PropertyName == "IsDone") { SaveData(); RefreshDashboard(); } };
+            StudyTasks.Add(task);
+            SaveData();
+            ResetQuickAddFields();
+            RefreshDashboard();
+        }
+
+        private void StartFocus()
+        {
+             string message = SmartRecommendationTitle
+                 + Environment.NewLine + Environment.NewLine
+                 + SmartRecommendationBody
+                 + Environment.NewLine + Environment.NewLine
+                 + StudentCompanionText
+                 + Environment.NewLine
+                 + StudentRewardText;
+             MessageBox.Show(message, "غرفة التركيز");
+        }
+
+        private void LoadData()
+        {
+            var tasks = _storageService.LoadTasks();
+            foreach (var t in tasks)
+            {
+                t.AccentBrush = ResolveAccentBrush(t.Subject);
+                t.SoftAccentBrush = ResolveSoftAccentBrush(t.Subject);
+                t.PropertyChanged += (s, e) => { if (e.PropertyName == "IsDone") { SaveData(); RefreshDashboard(); } };
+                StudyTasks.Add(t);
+            }
+        }
+
+        private void SaveData()
+        {
+            _storageService.SaveTasks(StudyTasks.ToList());
+        }
+
+        private void RefreshDashboard()
+        {
+            UpdateClock();
+            UpdateTaskSummary();
+            UpdateStudyInsights();
+            UpdateRecommendation();
+            UpdateStudentBoost();
+        }
+
+        private void UpdateClock()
+        {
+            DateTime now = DateTime.Now;
+            CurrentDateText = now.ToString("dddd، dd MMMM", ArabicCulture);
+            CurrentTimeText = now.ToString("HH:mm", ArabicCulture);
+        }
+
+        private void UpdateTaskSummary()
+        {
+            int total = StudyTasks.Count;
+            int completed = StudyTasks.Count(task => task.IsDone);
+            int pending = total - completed;
+            int urgent = StudyTasks.Count(task => !task.IsDone && (task.DueDate - DateTime.Today).Days <= 1);
+            int pendingMinutes = StudyTasks.Where(task => !task.IsDone).Sum(task => ParseMinutes(task.EstimateText));
+            int completionPercent = total == 0 ? 0 : (int)Math.Round((double)completed / total * 100.0);
+
+            CompletedTasksText = completed + "/" + total;
+            PendingTasksText = pending.ToString();
+            UrgentTasksText = urgent.ToString();
+            PlannedMinutesText = pendingMinutes + " دقيقة";
+            OverallProgressText = completionPercent + "%";
+            OverallProgressSubtitle = pending == 0 ? "أقفلت القائمة كاملة" : "أنجزت " + completed + " من " + total + " مهام";
+            OverallProgressWidth = 228.0 * completionPercent / 100.0;
+            IsTaskListEmpty = total == 0;
+
+            if (pending == 0) TaskListSubtitle = "المشهد نظيف.";
+            else if (urgent >= 2) TaskListSubtitle = "عندك ضغط حقيقي.";
+            else TaskListSubtitle = "القائمة تحت السيطرة.";
+
+            DailyMissionText = pending == 0 ? "كل شيء مقفول." : "أغلق " + Math.Min(2, pending) + " مهمة اليوم.";
+            TaskHeatText = urgent >= 3 ? "ضغط عالي" : urgent >= 1 ? "ضغط محسوب" : "إيقاع نظيف";
+        }
+
+        private void UpdateStudyInsights()
+        {
+            UpdateSubjectOverview();
+            UpdateTodaySessions();
+
+            var pendingTasks = StudyTasks.Where(task => !task.IsDone)
+                .OrderByDescending(task => task.PriorityWeight)
+                .ThenBy(task => task.DueDate)
+                .ThenByDescending(task => ParseMinutes(task.EstimateText))
+                .ToList();
+            int completedCount = StudyTasks.Count(task => task.IsDone);
+            int pendingMinutes = pendingTasks.Sum(task => ParseMinutes(task.EstimateText));
+
+            if (Subjects.Count == 0)
+            {
+                WinningSubjectText = "أضف أول مادة";
+                RecoverySubjectText = "ابدأ بمادة تحبها حتى تدخل الجو وتكسب أول دفعة.";
+            }
+            else
+            {
+                SubjectOverview winningSubject = Subjects
+                    .OrderByDescending(subject => subject.CompletionPercent)
+                    .ThenByDescending(subject => subject.HoursStudied)
+                    .First();
+                WinningSubjectText = winningSubject.Name + " " + winningSubject.CompletionLabel;
+
+                SubjectOverview recoverySubject = Subjects
+                    .OrderBy(subject => subject.CompletionPercent)
+                    .ThenByDescending(subject => Math.Max(0, subject.HoursTarget - subject.HoursStudied))
+                    .First();
+                RecoverySubjectText = recoverySubject.CompletionPercent >= 85
+                    ? "المواد ماشية بنَفَس ممتاز، حافظ على اللمسة اليومية."
+                    : "مادة الإنقاذ اليوم: " + recoverySubject.Name + ". جلسة قصيرة تكفي لتعديل المزاج.";
+            }
+
+            if (pendingTasks.Count == 0)
+            {
+                NextSessionText = "لا توجد جلسة قادمة، خذ راحة مستحقة.";
+                FocusLaneText = "10 دقائق ترتيب خفيف ثم كافئ نفسك.";
+                StudyStreakText = completedCount == 0 ? "جاهز لأول دفعة" : completedCount + " مهام مكتملة";
+                MomentumText = completedCount == 0
+                    ? "ابدأ بأبسط مهمة، والباقي سيصير أخف."
+                    : "أنهيت اليوم بشكل محترم، استمتع بالإحساس.";
+                return;
+            }
+
+            StudyTask nextTask = pendingTasks[0];
+            int nextDuration = NormalizeDuration(ParseMinutes(nextTask.EstimateText));
+
+            NextSessionText = NormalizeSubject(nextTask.Subject) + " | " + nextTask.Title + " لمدة " + nextDuration + " دقيقة";
+            FocusLaneText = BuildFocusLane(nextTask, pendingMinutes, pendingTasks.Count);
+            StudyStreakText = completedCount == 0 ? "دفعة البداية" : (completedCount + 1) + " دفعات ثقة";
+            MomentumText = BuildMomentumText(completedCount, pendingTasks.Count);
+        }
+
+        private void UpdateRecommendation()
+        {
+            var pendingTasks = StudyTasks.Where(t => !t.IsDone).ToList();
+            if (pendingTasks.Count == 0)
+            {
+                SmartRecommendationTitle = "الميدان نظيف";
+                SmartRecommendationBody = "استرخِ قليلاً.";
+                return;
+            }
+            var chosen = pendingTasks[_recommendationOffset % pendingTasks.Count];
+            SmartRecommendationTitle = chosen.Title;
+            SmartRecommendationBody = "ابدأ بـ " + chosen.Subject + " لمدة " + chosen.EstimateText;
+        }
+
+        private void UpdateStudentBoost()
+        {
+            var pendingTasks = StudyTasks.Where(task => !task.IsDone)
+                .OrderByDescending(task => task.PriorityWeight)
+                .ThenBy(task => task.DueDate)
+                .ThenByDescending(task => ParseMinutes(task.EstimateText))
+                .ToList();
+            int completedCount = StudyTasks.Count(task => task.IsDone);
+            int pendingMinutes = pendingTasks.Sum(task => ParseMinutes(task.EstimateText));
+
+            if (pendingTasks.Count == 0)
+            {
+                StudentJoyTitle = "اليوم مقفول";
+                StudentJoyBody = "خلصت المطلوب. خذ ربع ساعة بدون تأنيب: مشروب تحبه، حلقة قصيرة، أو تمشية بسيطة.";
+                StudentRewardText = "المكافأة: راحة 15 دقيقة";
+                StudentCompanionText = "الجو: راجع إنجازك وابتسم";
+                return;
+            }
+
+            StudyTask chosen = pendingTasks[_recommendationOffset % pendingTasks.Count];
+
+            StudentJoyTitle = chosen.PriorityWeight >= 3
+                ? "إنقاذ سريع"
+                : completedCount == 0
+                    ? "بداية تشرح الصدر"
+                    : pendingTasks.Count == 1
+                        ? "قفلة اليوم"
+                        : "حافظ على النفس";
+            StudentJoyBody = BuildStudentJoyBody(chosen, completedCount, pendingMinutes, pendingTasks.Count);
+            StudentRewardText = BuildRewardIdea(chosen, completedCount);
+            StudentCompanionText = BuildCompanionText(chosen);
+        }
+
+        private void UpdateSubjectOverview()
+        {
+            Subjects.Clear();
+
+            var groupedTasks = StudyTasks
+                .GroupBy(task => NormalizeSubject(task.Subject))
+                .OrderByDescending(group => group.Count())
+                .ThenBy(group => group.Key);
+
+            foreach (var group in groupedTasks)
+            {
+                int totalTasks = group.Count();
+                int completedTasks = group.Count(task => task.IsDone);
+                int totalMinutes = group.Sum(task => NormalizeDuration(ParseMinutes(task.EstimateText)));
+                int completedMinutes = group.Where(task => task.IsDone).Sum(task => NormalizeDuration(ParseMinutes(task.EstimateText)));
+                int completionPercent = totalTasks == 0
+                    ? 0
+                    : (int)Math.Round((double)completedTasks / totalTasks * 100.0);
+                int remainingMinutes = Math.Max(0, totalMinutes - completedMinutes);
+
+                Subjects.Add(new SubjectOverview
+                {
+                    Name = group.Key,
+                    HoursStudied = completedMinutes / 60.0,
+                    HoursTarget = Math.Max(30, totalMinutes) / 60.0,
+                    CompletionPercent = completionPercent,
+                    StatusText = BuildSubjectStatus(completedTasks, totalTasks, remainingMinutes, completionPercent),
+                    AccentBrush = ResolveAccentBrush(group.Key),
+                    SoftAccentBrush = ResolveSoftAccentBrush(group.Key)
+                });
+            }
+        }
+
+        private void UpdateTodaySessions()
+        {
+            TodaySessions.Clear();
+
+            var plannedTasks = StudyTasks.Where(task => !task.IsDone)
+                .OrderByDescending(task => task.PriorityWeight)
+                .ThenBy(task => task.DueDate)
+                .ThenByDescending(task => ParseMinutes(task.EstimateText))
+                .Take(3)
+                .ToList();
+
+            DateTime startAt = RoundToNextQuarter(DateTime.Now.AddMinutes(10));
+
+            foreach (var task in plannedTasks)
+            {
+                int duration = NormalizeDuration(ParseMinutes(task.EstimateText));
+
+                TodaySessions.Add(new StudySession
+                {
+                    Subject = NormalizeSubject(task.Subject),
+                    Topic = BuildSessionTopic(task),
+                    StartAt = startAt,
+                    DurationMinutes = duration,
+                    AccentBrush = ResolveAccentBrush(task.Subject),
+                    SoftAccentBrush = ResolveSoftAccentBrush(task.Subject)
+                });
+
+                startAt = startAt.AddMinutes(duration + 10);
+            }
+        }
+
+        // Helper methods (Moved from MainWindow.xaml.cs)
+        private static int ResolvePriorityWeight(string p) => p == "عاجل" ? 3 : p == "مهم" ? 2 : 1;
+        private static DateTime ResolveDueDate(string p) => p == "عاجل" ? DateTime.Today : p == "مهم" ? DateTime.Today.AddDays(1) : DateTime.Today.AddDays(3);
+        private static string BuildStudyMode(string s)
+        {
+            string subject = NormalizeSubject(s);
+
+            if (ContainsAny(subject, "رياض", "Math", "جبر", "هندسة")) return "حل مسائل ثم مراجعة الأخطاء";
+            if (ContainsAny(subject, "فيز", "كيمي", "أحياء", "علوم")) return "مفاهيم مركزة + أسئلة سريعة";
+            if (ContainsAny(subject, "عرب", "إنج", "لغة", "فرنسي")) return "قراءة مركزة + تثبيت الأفكار";
+
+            return "جولة تركيز قصيرة ثم تلخيص سريع";
+        }
+        private static Brush ResolveAccentBrush(string s)
+        {
+            int paletteIndex = GetSubjectPaletteIndex(s);
+            return CreateBrush(AccentPalette[paletteIndex]);
+        }
+        private static Brush ResolveSoftAccentBrush(string s)
+        {
+            int paletteIndex = GetSubjectPaletteIndex(s);
+            return CreateBrush(SoftAccentPalette[paletteIndex]);
+        }
+        private static int ParseMinutes(string t) => int.TryParse(new string((t ?? "").Where(char.IsDigit).ToArray()), out int m) ? m : 0;
+        private static int NormalizeDuration(int minutes) => minutes <= 0 ? 30 : Math.Max(20, Math.Min(60, minutes));
+
+        private static string BuildSubjectStatus(int completedTasks, int totalTasks, int remainingMinutes, int completionPercent)
+        {
+            if (totalTasks == 0) return "لا توجد مهام بعد.";
+            if (completedTasks == totalTasks) return "المادة مقفولة اليوم، ممتاز.";
+            if (completionPercent >= 70) return "قريبة من القفل. المتبقي حوالي " + remainingMinutes + " دقيقة.";
+            if (completionPercent >= 35) return completedTasks + "/" + totalTasks + " مهام منجزة، بقي دفعة لطيفة.";
+            return "ابدأها بجلسة خفيفة، المتبقي حوالي " + remainingMinutes + " دقيقة.";
+        }
+
+        private static string BuildSessionTopic(StudyTask task)
+        {
+            string subject = NormalizeSubject(task.Subject);
+            return task.Title + " | " + subject + " | " + BuildStudyMode(subject);
+        }
+
+        private static string BuildFocusLane(StudyTask task, int pendingMinutes, int pendingTaskCount)
+        {
+            int duration = NormalizeDuration(ParseMinutes(task.EstimateText));
+
+            if (task.PriorityWeight >= 3) return "25 دقيقة على " + NormalizeSubject(task.Subject) + " ثم 5 دقائق تنفّس.";
+            if (pendingMinutes >= 150) return "اليوم مزدحم: جولتان 30 دقيقة ثم استراحة 10 دقائق.";
+            if (pendingTaskCount == 1) return "هذه القفلة الأخيرة، أنهها ثم خذ مكافأتك.";
+
+            return duration + " دقيقة تركيز على " + task.Title + " ثم مراجعة سريعة.";
+        }
+
+        private static string BuildMomentumText(int completedCount, int pendingCount)
+        {
+            if (completedCount == 0) return "ابدأ بجولة واحدة فقط، والباقي سيصير أخف.";
+            if (completedCount >= pendingCount) return "أنت سابق القائمة، كمّل على نفس الإيقاع.";
+
+            return "فيه شغل انقفل فعلًا، باقي دفعة لطيفة وتروق.";
+        }
+
+        private static string BuildStudentJoyBody(StudyTask task, int completedCount, int pendingMinutes, int pendingCount)
+        {
+            int duration = NormalizeDuration(ParseMinutes(task.EstimateText));
+            string subject = NormalizeSubject(task.Subject);
+
+            if (task.PriorityWeight >= 3)
+            {
+                return "ابدأ الآن بـ " + task.Title + " من " + subject + " لمدة " + duration + " دقيقة. مجرد جولة واحدة ستخفف الضغط فورًا.";
+            }
+
+            if (completedCount == 0)
+            {
+                return "لا تحمل هم اليوم كاملًا. افتح " + task.Title + " فقط، واضبط المؤقت " + duration + " دقيقة، وبعدها قرر الخطوة التالية.";
+            }
+
+            if (pendingCount == 1)
+            {
+                return "هذه تقريبًا آخر قفلة. أنجز " + task.Title + " وبعدها اعتبر اليوم ناجحًا رسميًا.";
+            }
+
+            if (pendingMinutes >= 150)
+            {
+                return "اليوم مزدحم، فخذه على دفعات قصيرة. ابدأ بـ " + task.Title + " ثم خذ استراحة صغيرة قبل المهمة التالية.";
+            }
+
+            return "مزاج الطالب يرتفع لما يبدأ بشيء واضح. ابدأ بـ " + task.Title + " من " + subject + " وخلك على جولة واحدة فقط.";
+        }
+
+        private static string BuildRewardIdea(StudyTask task, int completedCount)
+        {
+            int duration = NormalizeDuration(ParseMinutes(task.EstimateText));
+
+            if (completedCount >= 3) return "المكافأة: قهوة + 10 دقائق راحة";
+            if (task.PriorityWeight >= 3) return "بعدها: 5 دقائق تنفّس + مشروب";
+            if (duration >= 45) return "بعدها: سنّاك سريع أو تمشية قصيرة";
+
+            return "بعدها: أغنية تحبها أو دقيقتان تمدد";
+        }
+
+        private static string BuildCompanionText(StudyTask task)
+        {
+            string subject = NormalizeSubject(task.Subject);
+
+            if (ContainsAny(subject, "رياض", "Math", "فيز", "كيمي")) return "العدة: ورقة أخطاء + قلم + جوال بعيد";
+            if (ContainsAny(subject, "عرب", "إنج", "لغة", "تاريخ", "أحياء")) return "العدة: ماء + قراءة بصوت خفيف + مؤقت";
+
+            return "العدة: مؤقت 25 دقيقة + ماء + سطح مكتب نظيف";
+        }
+
+        private static DateTime RoundToNextQuarter(DateTime dateTime)
+        {
+            DateTime baseTime = new DateTime(dateTime.Year, dateTime.Month, dateTime.Day, dateTime.Hour, 0, 0);
+            int nextQuarter = ((dateTime.Minute / 15) + 1) * 15;
+            return nextQuarter >= 60 ? baseTime.AddHours(1) : baseTime.AddMinutes(nextQuarter);
+        }
+
+        private static string NormalizeSubject(string subject)
+        {
+            string value = (subject ?? string.Empty).Trim();
+            return string.IsNullOrWhiteSpace(value) ? "عام" : value;
+        }
+
+        private static int GetSubjectPaletteIndex(string subject)
+        {
+            int seed = NormalizeSubject(subject).Where(ch => !char.IsWhiteSpace(ch)).Sum(ch => ch);
+            return seed % AccentPalette.Length;
+        }
+
+        private static Brush CreateBrush(string hexColor)
+        {
+            return (Brush)new BrushConverter().ConvertFromString(hexColor);
+        }
+
+        private static bool ContainsAny(string value, params string[] tokens)
+        {
+            return tokens.Any(token => value.IndexOf(token, StringComparison.OrdinalIgnoreCase) >= 0);
+        }
+
+        private void ResetQuickAddFields()
+        {
+            NewTaskTitle = "";
+            SelectedSubjectOption = "";
+            SelectedDurationOption = "30";
+            SelectedPriorityOption = PriorityOptions[0];
+        }
+
+        private void ConfigureTaskSorting()
+        {
+            var taskView = CollectionViewSource.GetDefaultView(StudyTasks);
+            taskView.SortDescriptions.Clear();
+            taskView.SortDescriptions.Add(new SortDescription("IsDone", ListSortDirection.Ascending));
+            taskView.SortDescriptions.Add(new SortDescription("PriorityWeight", ListSortDirection.Descending));
+        }
+
+        public event PropertyChangedEventHandler PropertyChanged;
+        protected void OnPropertyChanged([CallerMemberName] string p = null) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(p));
+        protected bool SetProperty<T>(ref T f, T v, [CallerMemberName] string p = null)
+        {
+            if (EqualityComparer<T>.Default.Equals(f, v)) return false;
+            f = v; OnPropertyChanged(p); return true;
+        }
+    }
+}

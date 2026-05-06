@@ -1,0 +1,58 @@
+<UserControl x:Class="WpfApp1.Components.PomodoroTimer"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             mc:Ignorable="d" 
+             d:DesignHeight="300" d:DesignWidth="300">
+    <Border Background="#FF101827" CornerRadius="32" Padding="24" Effect="{StaticResource SoftShadowEffect}">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <TextBlock Text="مؤقت التركيز" 
+                       HorizontalAlignment="Center" 
+                       FontSize="14" 
+                       Foreground="#7A334155" 
+                       FontWeight="SemiBold" />
+
+            <Grid Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Center">
+                <!-- Circular Progress Ring (Custom Drawing) -->
+                <Ellipse Width="180" Height="180" Stroke="#18FFFFFF" StrokeThickness="8" />
+                <Path x:Name="ProgressArc" Stroke="#FFF97316" StrokeThickness="8" StrokeEndLineCap="Round" />
+                
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock x:Name="TimeDisplay" 
+                               Text="25:00" 
+                               FontSize="48" 
+                               FontWeight="Bold" 
+                               Foreground="White" 
+                               HorizontalAlignment="Center" />
+                    <TextBlock x:Name="StatusDisplay" 
+                               Text="وقت العمل" 
+                               FontSize="12" 
+                               Foreground="#FFF97316" 
+                               HorizontalAlignment="Center" 
+                               Margin="0,4,0,0" />
+                </StackPanel>
+            </Grid>
+
+            <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,20,0,0">
+                <Button x:Name="StartButton" 
+                        Content="ابدأ" 
+                        Click="Start_Click" 
+                        Width="80" 
+                        Style="{StaticResource PrimaryButtonStyle}" />
+                <Button x:Name="ResetButton" 
+                        Content="إعادة" 
+                        Click="Reset_Click" 
+                        Width="80" 
+                        Margin="12,0,0,0" 
+                        Style="{StaticResource DarkButtonStyle}" />
+            </StackPanel>
+        </Grid>
+    </Border>
+</UserControl>

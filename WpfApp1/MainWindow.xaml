@@ -3,8 +3,12 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="clr-namespace:WpfApp1.ViewModels"
+        xmlns:models="clr-namespace:WpfApp1.Models"
+        xmlns:components="clr-namespace:WpfApp1.Components"
+        xmlns:services="clr-namespace:WpfApp1.Services"
         mc:Ignorable="d"
-        Title="Smart Study Planner"
+        Title="Elite Study OS"
         Width="1520"
         Height="930"
         MinWidth="1280"
@@ -170,6 +174,14 @@
                 </Setter.Value>
             </Setter>
         </Style>
+        
+        <services:ViewToVisibilityConverter x:Key="ViewToVisibilityConverter" />
+        
+        <DataTemplate x:Key="DashboardView">
+            <Grid>
+                <!-- Existing dashboard content moved here eventually, but for now we'll just toggle visibility of existing panels -->
+            </Grid>
+        </DataTemplate>
     </Window.Resources>
 
     <Grid>
@@ -390,12 +402,16 @@
                                            TextAlignment="Right" />
 
                                 <Button Content="ابدأ جلسة تركيز"
-                                        Click="StartFocus_Click"
+                                        Command="{Binding StartFocusCommand}"
                                         Style="{StaticResource PrimaryButtonStyle}" />
                                 <Button Content="بدّل الاقتراح الذكي"
-                                        Click="GenerateSmartPlan_Click"
+                                        Command="{Binding GenerateSmartPlanCommand}"
                                         Margin="0,10,0,0"
                                         Style="{StaticResource DarkButtonStyle}" />
+                               <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,18,0,0">
+                                   <Button Content="الرئيسية" Command="{Binding NavigateCommand}" CommandParameter="Dashboard" Style="{StaticResource DarkButtonStyle}" Width="100" Margin="0,0,10,0"/>
+                                   <Button Content="الإحصائيات" Command="{Binding NavigateCommand}" CommandParameter="Stats" Style="{StaticResource DarkButtonStyle}" Width="100"/>
+                               </StackPanel>
                             </StackPanel>
                         </Border>
                     </StackPanel>
@@ -415,6 +431,8 @@
                     Padding="26"
                     Margin="0,0,20,0">
                 <Grid>
+                    <!-- Show Dashboard if CurrentView is Dashboard -->
+                    <Grid Visibility="{Binding CurrentView, Converter={StaticResource ViewToVisibilityConverter}, ConverterParameter=Dashboard}">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
@@ -499,7 +517,7 @@
                             <Button Grid.Column="4"
                                     Content="إضافة فخمة"
                                     Margin="16,28,0,0"
-                                    Click="AddTask_Click"
+                                    Command="{Binding AddTaskCommand}"
                                     Height="52"
                                     Style="{StaticResource PrimaryButtonStyle}" />
                         </Grid>
@@ -755,36 +773,69 @@
                         </Grid>
                     </ScrollViewer>
                 </Grid>
-            </Border>
+
+            <!-- Show Stats if CurrentView is Stats -->
+            <components:StatisticsDashboard Visibility="{Binding CurrentView, Converter={StaticResource ViewToVisibilityConverter}, ConverterParameter=Stats}" />
+        </Grid>
+    </Border>
 
             <ScrollViewer Grid.Column="2"
                           VerticalScrollBarVisibility="Auto"
                           HorizontalScrollBarVisibility="Disabled">
                 <StackPanel>
-                    <Border Background="#FF101827"
+                    <components:PomodoroTimer Margin="0,0,0,18" />
+
+                    <Border Background="#FF111827"
                             CornerRadius="32"
                             Padding="22"
                             Margin="0,0,0,18"
                             Effect="{StaticResource SoftShadowEffect}">
                         <StackPanel>
-                            <TextBlock Text="غرفة التركيز"
+                            <TextBlock Text="اقتراحات تشرح الصدر"
+                                       FontSize="12"
+                                       FontWeight="SemiBold"
+                                       Foreground="#FFFFD9B8"
+                                       TextAlignment="Right" />
+                            <TextBlock Text="{Binding StudentJoyTitle}"
+                                       Margin="0,12,0,8"
                                        FontFamily="Bahnschrift"
-                                       FontSize="22"
+                                       FontSize="24"
                                        FontWeight="Bold"
                                        Foreground="White"
                                        TextAlignment="Right" />
-                            <TextBlock Text="{Binding SmartRecommendationTitle}"
-                                       Margin="0,14,0,8"
-                                       FontSize="20"
-                                       FontWeight="Bold"
-                                       Foreground="#FFFFD9B8"
-                                       TextWrapping="Wrap"
-                                       TextAlignment="Right" />
-                            <TextBlock Text="{Binding SmartRecommendationBody}"
+                            <TextBlock Text="{Binding StudentJoyBody}"
                                        FontSize="13"
                                        Foreground="#D7F8FAFC"
                                        TextWrapping="Wrap"
                                        TextAlignment="Right" />
+
+                            <WrapPanel FlowDirection="RightToLeft"
+                                       HorizontalAlignment="Right"
+                                       Margin="0,14,0,0">
+                                <Border Background="#18FFFFFF"
+                                        CornerRadius="999"
+                                        Padding="12,7"
+                                        Margin="0,0,8,8">
+                                    <TextBlock Text="{Binding StudentRewardText}"
+                                               FontSize="11"
+                                               FontWeight="SemiBold"
+                                               Foreground="White" />
+                                </Border>
+                                <Border Background="#18FFFFFF"
+                                        CornerRadius="999"
+                                        Padding="12,7"
+                                        Margin="0,0,0,8">
+                                    <TextBlock Text="{Binding StudentCompanionText}"
+                                               FontSize="11"
+                                               FontWeight="SemiBold"
+                                               Foreground="White" />
+                                </Border>
+                            </WrapPanel>
+
+                            <Button Content="بدّل الجو"
+                                    Command="{Binding GenerateSmartPlanCommand}"
+                                    Margin="0,8,0,0"
+                                    Style="{StaticResource DarkButtonStyle}" />
                         </StackPanel>
                     </Border>
 
