@@ -16,13 +16,17 @@
             <TextBlock Text="مؤقت التركيز" 
                        HorizontalAlignment="Center" 
                        FontSize="14" 
-                       Foreground="#7A334155" 
+                       Foreground="#B3E2E8F0" 
                        FontWeight="SemiBold" />
 
             <Grid Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Center">
                 <!-- Circular Progress Ring (Custom Drawing) -->
                 <Ellipse Width="180" Height="180" Stroke="#18FFFFFF" StrokeThickness="8" />
-                <Path x:Name="ProgressArc" Stroke="#FFF97316" StrokeThickness="8" StrokeEndLineCap="Round" />
+                <Path x:Name="ProgressArc"
+                      Stroke="#FFF97316"
+                      StrokeThickness="8"
+                      StrokeStartLineCap="Round"
+                      StrokeEndLineCap="Round" />
                 
                 <StackPanel VerticalAlignment="Center">
                     <TextBlock x:Name="TimeDisplay" 
