@@ -67,6 +67,20 @@ namespace WpfApp1.ViewModels
         private string _selectedDurationOption;
         private string _selectedPriorityOption;
         private bool _isTaskListEmpty;
+        private string _totalStudyHoursText;
+        private string _completionRateText;
+        private string _remainingWorkText;
+        private string _averageFocusText;
+        private string _urgentWorkText;
+        private string _focusScoreText;
+        private double _focusScoreWidth;
+        private string _productivityGradeText;
+        private string _primaryInsightTitle;
+        private string _primaryInsightBody;
+        private string _bestNextActionText;
+        private string _workloadBalanceText;
+        private string _subjectAnalyticsSubtitle;
+        private string _storageHealthText;
 
         private object _currentView;
 
@@ -91,6 +105,8 @@ namespace WpfApp1.ViewModels
             AddTaskCommand = new RelayCommand(o => AddTask());
             GenerateSmartPlanCommand = new RelayCommand(o => { _recommendationOffset++; RefreshDashboard(); });
             StartFocusCommand = new RelayCommand(o => StartFocus());
+            DeleteTaskCommand = new RelayCommand(DeleteTask, o => o is StudyTask);
+            ClearCompletedCommand = new RelayCommand(o => ClearCompletedTasks(), o => StudyTasks.Any(task => task.IsDone));
             NavigateCommand = new RelayCommand(o => CurrentView = o);
 
             CurrentView = "Dashboard"; // Initial view
@@ -107,6 +123,8 @@ namespace WpfApp1.ViewModels
         public ICommand AddTaskCommand { get; }
         public ICommand GenerateSmartPlanCommand { get; }
         public ICommand StartFocusCommand { get; }
+        public ICommand DeleteTaskCommand { get; }
+        public ICommand ClearCompletedCommand { get; }
 
         // Properties (Getters/Setters)
         public string CurrentDateText { get => _currentDateText; set => SetProperty(ref _currentDateText, value); }
@@ -138,6 +156,20 @@ namespace WpfApp1.ViewModels
         public string SelectedDurationOption { get => _selectedDurationOption; set => SetProperty(ref _selectedDurationOption, value); }
         public string SelectedPriorityOption { get => _selectedPriorityOption; set => SetProperty(ref _selectedPriorityOption, value); }
         public bool IsTaskListEmpty { get => _isTaskListEmpty; set => SetProperty(ref _isTaskListEmpty, value); }
+        public string TotalStudyHoursText { get => _totalStudyHoursText; set => SetProperty(ref _totalStudyHoursText, value); }
+        public string CompletionRateText { get => _completionRateText; set => SetProperty(ref _completionRateText, value); }
+        public string RemainingWorkText { get => _remainingWorkText; set => SetProperty(ref _remainingWorkText, value); }
+        public string AverageFocusText { get => _averageFocusText; set => SetProperty(ref _averageFocusText, value); }
+        public string UrgentWorkText { get => _urgentWorkText; set => SetProperty(ref _urgentWorkText, value); }
+        public string FocusScoreText { get => _focusScoreText; set => SetProperty(ref _focusScoreText, value); }
+        public double FocusScoreWidth { get => _focusScoreWidth; set => SetProperty(ref _focusScoreWidth, value); }
+        public string ProductivityGradeText { get => _productivityGradeText; set => SetProperty(ref _productivityGradeText, value); }
+        public string PrimaryInsightTitle { get => _primaryInsightTitle; set => SetProperty(ref _primaryInsightTitle, value); }
+        public string PrimaryInsightBody { get => _primaryInsightBody; set => SetProperty(ref _primaryInsightBody, value); }
+        public string BestNextActionText { get => _bestNextActionText; set => SetProperty(ref _bestNextActionText, value); }
+        public string WorkloadBalanceText { get => _workloadBalanceText; set => SetProperty(ref _workloadBalanceText, value); }
+        public string SubjectAnalyticsSubtitle { get => _subjectAnalyticsSubtitle; set => SetProperty(ref _subjectAnalyticsSubtitle, value); }
+        public string StorageHealthText { get => _storageHealthText; set => SetProperty(ref _storageHealthText, value); }
 
         private void AddTask()
         {
@@ -165,11 +197,40 @@ namespace WpfApp1.ViewModels
                 SoftAccentBrush = ResolveSoftAccentBrush(subject)
             };
 
-            task.PropertyChanged += (s, e) => { if (e.PropertyName == "IsDone") { SaveData(); RefreshDashboard(); } };
+            AttachTaskHandlers(task);
             StudyTasks.Add(task);
             SaveData();
             ResetQuickAddFields();
             RefreshDashboard();
+            CommandManager.InvalidateRequerySuggested();
+        }
+
+        private void DeleteTask(object parameter)
+        {
+            var task = parameter as StudyTask;
+            if (task == null) return;
+
+            if (StudyTasks.Remove(task))
+            {
+                task.PropertyChanged -= StudyTask_PropertyChanged;
+                SaveData();
+                RefreshDashboard();
+                CommandManager.InvalidateRequerySuggested();
+            }
+        }
+
+        private void ClearCompletedTasks()
+        {
+            var completedTasks = StudyTasks.Where(task => task.IsDone).ToList();
+            foreach (var task in completedTasks)
+            {
+                task.PropertyChanged -= StudyTask_PropertyChanged;
+                StudyTasks.Remove(task);
+            }
+
+            SaveData();
+            RefreshDashboard();
+            CommandManager.InvalidateRequerySuggested();
         }
 
         private void StartFocus()
@@ -189,16 +250,42 @@ namespace WpfApp1.ViewModels
             var tasks = _storageService.LoadTasks();
             foreach (var t in tasks)
             {
+                if (string.IsNullOrWhiteSpace(t.StudyMode)) t.StudyMode = BuildStudyMode(t.Subject);
+                if (string.IsNullOrWhiteSpace(t.PriorityLabel)) t.PriorityLabel = "عادي";
+                if (t.PriorityWeight <= 0) t.PriorityWeight = ResolvePriorityWeight(t.PriorityLabel);
+                if (string.IsNullOrWhiteSpace(t.EstimateText)) t.EstimateText = "30 دقيقة";
+                if (t.ConfidencePercent <= 0) t.ConfidencePercent = 70;
+
                 t.AccentBrush = ResolveAccentBrush(t.Subject);
                 t.SoftAccentBrush = ResolveSoftAccentBrush(t.Subject);
-                t.PropertyChanged += (s, e) => { if (e.PropertyName == "IsDone") { SaveData(); RefreshDashboard(); } };
+                AttachTaskHandlers(t);
                 StudyTasks.Add(t);
             }
+
+            StorageHealthText = string.IsNullOrWhiteSpace(_storageService.LastError)
+                ? "الحفظ التلقائي جاهز"
+                : "تم تجاوز ملف حفظ غير صالح";
         }
 
         private void SaveData()
         {
-            _storageService.SaveTasks(StudyTasks.ToList());
+            bool saved = _storageService.SaveTasks(StudyTasks.ToList());
+            StorageHealthText = saved ? "آخر حفظ تم بنجاح" : "تعذر الحفظ: " + _storageService.LastError;
+        }
+
+        private void AttachTaskHandlers(StudyTask task)
+        {
+            task.PropertyChanged -= StudyTask_PropertyChanged;
+            task.PropertyChanged += StudyTask_PropertyChanged;
+        }
+
+        private void StudyTask_PropertyChanged(object sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName != "IsDone") return;
+
+            SaveData();
+            RefreshDashboard();
+            CommandManager.InvalidateRequerySuggested();
         }
 
         private void RefreshDashboard()
@@ -206,6 +293,7 @@ namespace WpfApp1.ViewModels
             UpdateClock();
             UpdateTaskSummary();
             UpdateStudyInsights();
+            UpdateDashboardAnalytics();
             UpdateRecommendation();
             UpdateStudentBoost();
         }
@@ -243,16 +331,65 @@ namespace WpfApp1.ViewModels
             TaskHeatText = urgent >= 3 ? "ضغط عالي" : urgent >= 1 ? "ضغط محسوب" : "إيقاع نظيف";
         }
 
+        private void UpdateDashboardAnalytics()
+        {
+            int total = StudyTasks.Count;
+            int completed = StudyTasks.Count(task => task.IsDone);
+            int pending = total - completed;
+            int urgent = StudyTasks.Count(task => !task.IsDone && (task.DueDate - DateTime.Today).Days <= 1);
+            int totalMinutes = StudyTasks.Sum(task => NormalizeDuration(ParseMinutes(task.EstimateText)));
+            int completedMinutes = StudyTasks.Where(task => task.IsDone).Sum(task => NormalizeDuration(ParseMinutes(task.EstimateText)));
+            int pendingMinutes = Math.Max(0, totalMinutes - completedMinutes);
+            int completionPercent = total == 0 ? 0 : (int)Math.Round((double)completed / total * 100.0);
+            int averageMinutes = total == 0 ? 30 : Math.Max(20, totalMinutes / total);
+            int focusScore = CalculateFocusScore(completionPercent, urgent, pendingMinutes, Subjects.Count, total);
+            var pendingTasks = GetOrderedPendingTasks();
+            StudyTask nextTask = pendingTasks.FirstOrDefault();
+
+            TotalStudyHoursText = FormatMinutes(completedMinutes);
+            CompletionRateText = completionPercent + "%";
+            RemainingWorkText = FormatMinutes(pendingMinutes);
+            AverageFocusText = averageMinutes + " دقيقة";
+            UrgentWorkText = urgent == 0 ? "لا يوجد" : urgent + " عاجلة";
+            FocusScoreText = total == 0 ? "--" : focusScore + "/100";
+            FocusScoreWidth = total == 0 ? 0 : 250.0 * focusScore / 100.0;
+            WorkloadBalanceText = BuildWorkloadBalanceText(pendingMinutes, urgent, pending);
+            SubjectAnalyticsSubtitle = Subjects.Count == 0
+                ? "لا توجد مواد بعد. أضف أول مهمة حتى تظهر خريطة الدراسة."
+                : Subjects.Count + " مواد نشطة | " + FormatMinutes(totalMinutes) + " في الخطة";
+
+            if (total == 0)
+            {
+                ProductivityGradeText = "جاهز للبداية";
+                PrimaryInsightTitle = "ابنِ أول خطة صغيرة";
+                PrimaryInsightBody = "أضف مهمة واحدة واضحة مع مدة تقديرية. بعدها ستتحول اللوحة إلى نظام قرار يومي بدل قائمة عادية.";
+                BestNextActionText = "أضف مهمة مدتها 25-30 دقيقة في مادة واحدة.";
+                return;
+            }
+
+            if (pending == 0)
+            {
+                ProductivityGradeText = "ممتاز";
+                PrimaryInsightTitle = "اليوم مغلق بنظافة";
+                PrimaryInsightBody = "كل المهام مكتملة. القيمة الآن في الحفاظ على السلسلة: راجع ما أنجزته وخطط لمهمة صغيرة للغد.";
+                BestNextActionText = "اكتب مهمة الغد الأولى قبل إغلاق التطبيق.";
+                return;
+            }
+
+            ProductivityGradeText = focusScore >= 85 ? "سيطرة ممتازة" : focusScore >= 65 ? "إيقاع جيد" : focusScore >= 45 ? "يحتاج ترتيب" : "ضغط مرتفع";
+            PrimaryInsightTitle = urgent >= 2 ? "ابدأ بالعاجل قبل أن يكبر" : pendingMinutes >= 180 ? "قسّم اليوم إلى جولات" : "اختيارك القادم واضح";
+            PrimaryInsightBody = BuildPrimaryInsightBody(completionPercent, urgent, pendingMinutes, pending);
+            BestNextActionText = nextTask == null
+                ? "خذ راحة قصيرة ثم راجع الخطة."
+                : "ابدأ الآن: " + NormalizeSubject(nextTask.Subject) + " | " + nextTask.Title + " | " + NormalizeDuration(ParseMinutes(nextTask.EstimateText)) + " دقيقة";
+        }
+
         private void UpdateStudyInsights()
         {
             UpdateSubjectOverview();
             UpdateTodaySessions();
 
-            var pendingTasks = StudyTasks.Where(task => !task.IsDone)
-                .OrderByDescending(task => task.PriorityWeight)
-                .ThenBy(task => task.DueDate)
-                .ThenByDescending(task => ParseMinutes(task.EstimateText))
-                .ToList();
+            var pendingTasks = GetOrderedPendingTasks();
             int completedCount = StudyTasks.Count(task => task.IsDone);
             int pendingMinutes = pendingTasks.Sum(task => ParseMinutes(task.EstimateText));
 
@@ -300,7 +437,7 @@ namespace WpfApp1.ViewModels
 
         private void UpdateRecommendation()
         {
-            var pendingTasks = StudyTasks.Where(t => !t.IsDone).ToList();
+            var pendingTasks = GetOrderedPendingTasks();
             if (pendingTasks.Count == 0)
             {
                 SmartRecommendationTitle = "الميدان نظيف";
@@ -314,11 +451,7 @@ namespace WpfApp1.ViewModels
 
         private void UpdateStudentBoost()
         {
-            var pendingTasks = StudyTasks.Where(task => !task.IsDone)
-                .OrderByDescending(task => task.PriorityWeight)
-                .ThenBy(task => task.DueDate)
-                .ThenByDescending(task => ParseMinutes(task.EstimateText))
-                .ToList();
+            var pendingTasks = GetOrderedPendingTasks();
             int completedCount = StudyTasks.Count(task => task.IsDone);
             int pendingMinutes = pendingTasks.Sum(task => ParseMinutes(task.EstimateText));
 
@@ -352,7 +485,9 @@ namespace WpfApp1.ViewModels
             var groupedTasks = StudyTasks
                 .GroupBy(task => NormalizeSubject(task.Subject))
                 .OrderByDescending(group => group.Count())
-                .ThenBy(group => group.Key);
+                .ThenBy(group => group.Key)
+                .ToList();
+            int allPlannedMinutes = groupedTasks.Sum(group => group.Sum(task => NormalizeDuration(ParseMinutes(task.EstimateText))));
 
             foreach (var group in groupedTasks)
             {
@@ -364,13 +499,20 @@ namespace WpfApp1.ViewModels
                     ? 0
                     : (int)Math.Round((double)completedTasks / totalTasks * 100.0);
                 int remainingMinutes = Math.Max(0, totalMinutes - completedMinutes);
+                int sharePercent = allPlannedMinutes == 0
+                    ? 0
+                    : (int)Math.Round((double)totalMinutes / allPlannedMinutes * 100.0);
 
                 Subjects.Add(new SubjectOverview
                 {
                     Name = group.Key,
                     HoursStudied = completedMinutes / 60.0,
                     HoursTarget = Math.Max(30, totalMinutes) / 60.0,
+                    CompletedMinutes = completedMinutes,
+                    TotalMinutes = totalMinutes,
+                    RemainingMinutes = remainingMinutes,
                     CompletionPercent = completionPercent,
+                    SharePercent = sharePercent,
                     StatusText = BuildSubjectStatus(completedTasks, totalTasks, remainingMinutes, completionPercent),
                     AccentBrush = ResolveAccentBrush(group.Key),
                     SoftAccentBrush = ResolveSoftAccentBrush(group.Key)
@@ -382,10 +524,7 @@ namespace WpfApp1.ViewModels
         {
             TodaySessions.Clear();
 
-            var plannedTasks = StudyTasks.Where(task => !task.IsDone)
-                .OrderByDescending(task => task.PriorityWeight)
-                .ThenBy(task => task.DueDate)
-                .ThenByDescending(task => ParseMinutes(task.EstimateText))
+            var plannedTasks = GetOrderedPendingTasks()
                 .Take(3)
                 .ToList();
 
@@ -410,6 +549,57 @@ namespace WpfApp1.ViewModels
         }
 
         // Helper methods (Moved from MainWindow.xaml.cs)
+        private List<StudyTask> GetOrderedPendingTasks()
+        {
+            return StudyTasks.Where(task => !task.IsDone)
+                .OrderByDescending(task => task.PriorityWeight)
+                .ThenBy(task => task.DueDate)
+                .ThenByDescending(task => ParseMinutes(task.EstimateText))
+                .ToList();
+        }
+
+        private static int CalculateFocusScore(int completionPercent, int urgentCount, int pendingMinutes, int subjectCount, int totalTasks)
+        {
+            if (totalTasks == 0) return 0;
+
+            int completionScore = (int)Math.Round(completionPercent * 0.55);
+            int urgencyScore = urgentCount == 0 ? 25 : urgentCount == 1 ? 16 : urgentCount == 2 ? 8 : 2;
+            int workloadScore = pendingMinutes <= 60 ? 15 : pendingMinutes <= 150 ? 11 : pendingMinutes <= 270 ? 6 : 2;
+            int diversityScore = subjectCount <= 1 ? 3 : subjectCount <= 4 ? 5 : 4;
+
+            return Math.Max(0, Math.Min(100, completionScore + urgencyScore + workloadScore + diversityScore));
+        }
+
+        private static string BuildWorkloadBalanceText(int pendingMinutes, int urgentCount, int pendingCount)
+        {
+            if (pendingCount == 0) return "لا يوجد حمل متبقٍ اليوم.";
+            if (urgentCount >= 3) return "ابدأ بالعاجل فقط، واترك التحسينات لوقت لاحق.";
+            if (pendingMinutes >= 240) return "الحمل كبير. قسمه إلى ثلاث جولات ولا تفتح مهام جديدة.";
+            if (pendingMinutes >= 120) return "الحمل متوسط. جولتان مركزتان تكفيان لقلب اليوم.";
+
+            return "الحمل خفيف. مهمة واحدة الآن ترفع المؤشر بسرعة.";
+        }
+
+        private static string BuildPrimaryInsightBody(int completionPercent, int urgentCount, int pendingMinutes, int pendingCount)
+        {
+            if (urgentCount >= 2)
+            {
+                return "عندك " + urgentCount + " مهام عاجلة. أغلق أقصر مهمة عاجلة أولا حتى ينخفض الضغط النفسي بسرعة.";
+            }
+
+            if (completionPercent >= 70)
+            {
+                return "أنت قريب من إغلاق اليوم. لا توسع الخطة الآن، اختر مهمة واحدة فقط وأنهِها.";
+            }
+
+            if (pendingMinutes >= 180)
+            {
+                return "الخطة ثقيلة على جلسة واحدة. الأفضل تحويلها إلى جولات 25-30 دقيقة مع استراحات قصيرة.";
+            }
+
+            return "باقي " + pendingCount + " مهام. القرار الأفضل هو بدء المهمة الأعلى أولوية بدل إعادة ترتيب القائمة.";
+        }
+
         private static int ResolvePriorityWeight(string p) => p == "عاجل" ? 3 : p == "مهم" ? 2 : 1;
         private static DateTime ResolveDueDate(string p) => p == "عاجل" ? DateTime.Today : p == "مهم" ? DateTime.Today.AddDays(1) : DateTime.Today.AddDays(3);
         private static string BuildStudyMode(string s)
@@ -434,6 +624,16 @@ namespace WpfApp1.ViewModels
         }
         private static int ParseMinutes(string t) => int.TryParse(new string((t ?? "").Where(char.IsDigit).ToArray()), out int m) ? m : 0;
         private static int NormalizeDuration(int minutes) => minutes <= 0 ? 30 : Math.Max(20, Math.Min(60, minutes));
+
+        private static string FormatMinutes(int minutes)
+        {
+            if (minutes <= 0) return "0 دقيقة";
+            if (minutes < 60) return minutes + " دقيقة";
+
+            int hours = minutes / 60;
+            int rest = minutes % 60;
+            return rest == 0 ? hours + " ساعة" : hours + "س " + rest + "د";
+        }
 
         private static string BuildSubjectStatus(int completedTasks, int totalTasks, int remainingMinutes, int completionPercent)
         {
