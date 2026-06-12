@@ -109,6 +109,41 @@
             <Setter Property="BorderBrush" Value="#24FFFFFF" />
         </Style>
 
+        <Style x:Key="IconButtonStyle" TargetType="Button">
+            <Setter Property="Width" Value="36" />
+            <Setter Property="Height" Value="36" />
+            <Setter Property="Background" Value="#FFF3F4F6" />
+            <Setter Property="Foreground" Value="#FF64748B" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="FontFamily" Value="Segoe MDL2 Assets" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Root"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="18">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Root" Property="Background" Value="#FFE2E8F0" />
+                                <Setter Property="Foreground" Value="#FF0F172A" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Root" Property="Opacity" Value="0.75" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Root" Property="Opacity" Value="0.35" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <Style x:Key="FieldLabelStyle" TargetType="TextBlock">
             <Setter Property="FontSize" Value="12" />
             <Setter Property="FontWeight" Value="SemiBold" />
@@ -465,6 +500,12 @@
                                            FontWeight="SemiBold"
                                            Foreground="#FF0F172A" />
                             </Border>
+                            <Button Content="تنظيف المكتمل"
+                                    Command="{Binding ClearCompletedCommand}"
+                                    Margin="0,10,0,0"
+                                    Padding="12,8"
+                                    FontSize="12"
+                                    Style="{StaticResource GhostButtonStyle}" />
                         </StackPanel>
                     </Grid>
 
@@ -608,6 +649,7 @@
                                                     <ColumnDefinition Width="Auto" />
                                                     <ColumnDefinition Width="*" />
                                                     <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="Auto" />
                                                 </Grid.ColumnDefinitions>
 
                                                 <Border Background="{Binding AccentBrush}"
@@ -729,6 +771,15 @@
                                                           VerticalAlignment="Top"
                                                           IsChecked="{Binding IsDone, Mode=TwoWay}"
                                                           Style="{StaticResource TaskCheckBoxStyle}" />
+
+                                                <Button Grid.Column="4"
+                                                        Content="&#xE711;"
+                                                        Command="{Binding DataContext.DeleteTaskCommand, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
+                                                        CommandParameter="{Binding}"
+                                                        ToolTip="حذف المهمة"
+                                                        Margin="10,0,0,0"
+                                                        VerticalAlignment="Top"
+                                                        Style="{StaticResource IconButtonStyle}" />
                                             </Grid>
                                         </Border>
                                     </DataTemplate>
