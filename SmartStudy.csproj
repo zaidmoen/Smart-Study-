@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>SmartStudy</AssemblyName>
+    <RootNamespace>SmartStudy</RootNamespace>
+    <Version>2.0.0</Version>
+    <Authors>Zaid Mayyaleh</Authors>
+    <Product>Smart Study</Product>
+    <Description>Arabic-first study planner with task intelligence, focus sessions, and analytics.</Description>
+  </PropertyGroup>
+</Project>

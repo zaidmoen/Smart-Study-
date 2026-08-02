@@ -1,0 +1,92 @@
+<UserControl x:Class="SmartStudy.Views.TasksView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             FlowDirection="RightToLeft">
+    <Grid>
+        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+
+        <Grid Grid.Row="0" Margin="0,0,0,18">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+            <StackPanel>
+                <TextBlock Text="{Binding PageTitle}" Style="{StaticResource PageTitleStyle}" />
+                <TextBlock Text="{Binding PageSubtitle}" Style="{StaticResource BodyTextStyle}" Margin="0,7,0,0" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Bottom">
+                <Grid Width="260" Margin="0,0,10,0">
+                    <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" Padding="38,9,13,9" ToolTip="ابحث بالعنوان أو المادة" />
+                    <TextBlock Text="&#xE721;" FontFamily="Segoe MDL2 Assets" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="13,0" />
+                </Grid>
+                <ComboBox Width="150" ItemsSource="{Binding FilterOptions}" SelectedItem="{Binding SelectedFilter}" DisplayMemberPath="Label" />
+            </StackPanel>
+        </Grid>
+
+        <Border Grid.Row="1" Style="{StaticResource CardStyle}" Padding="20" Margin="0,0,0,18">
+            <StackPanel>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="2*"/>
+                        <ColumnDefinition Width="1.2*"/>
+                        <ColumnDefinition Width="0.85*"/>
+                        <ColumnDefinition Width="1.1*"/>
+                        <ColumnDefinition Width="1*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" Margin="0,0,10,0">
+                        <TextBlock Text="اسم المهمة" Style="{StaticResource CaptionTextStyle}" Margin="0,0,0,6" />
+                        <TextBox Text="{Binding NewTaskTitle, UpdateSourceTrigger=PropertyChanged}" ToolTip="مثال: حل واجب الفصل الثالث" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Margin="10,0">
+                        <TextBlock Text="المادة" Style="{StaticResource CaptionTextStyle}" Margin="0,0,0,6" />
+                        <TextBox Text="{Binding NewTaskSubject, UpdateSourceTrigger=PropertyChanged}" ToolTip="مثال: هياكل البيانات" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="2" Margin="10,0">
+                        <TextBlock Text="المدة بالدقائق" Style="{StaticResource CaptionTextStyle}" Margin="0,0,0,6" />
+                        <TextBox Text="{Binding NewTaskEstimatedMinutes, UpdateSourceTrigger=LostFocus}" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="3" Margin="10,0">
+                        <TextBlock Text="الموعد" Style="{StaticResource CaptionTextStyle}" Margin="0,0,0,6" />
+                        <DatePicker SelectedDate="{Binding NewTaskDueDate}" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="4" Margin="10,0">
+                        <TextBlock Text="الأولوية" Style="{StaticResource CaptionTextStyle}" Margin="0,0,0,6" />
+                        <ComboBox ItemsSource="{Binding PriorityOptions}" SelectedItem="{Binding SelectedPriority}" DisplayMemberPath="Label" />
+                    </StackPanel>
+                    <Button Grid.Column="5" Content="إضافة المهمة" Command="{Binding AddTaskCommand}" Style="{StaticResource PrimaryButtonStyle}" Margin="12,18,0,0" Height="46" />
+                </Grid>
+                <Grid Margin="0,14,0,0">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                    <TextBox Text="{Binding NewTaskNotes, UpdateSourceTrigger=PropertyChanged}" ToolTip="ملاحظات اختيارية أو تعريف مختصر للمطلوب" />
+                    <TextBlock Grid.Column="1" Text="يتم الحفظ محليًا تلقائيًا" Style="{StaticResource CaptionTextStyle}" Margin="16,0,0,0" VerticalAlignment="Center" />
+                </Grid>
+            </StackPanel>
+        </Border>
+
+        <Border Grid.Row="2" Style="{StaticResource CardStyle}" Padding="20">
+            <Grid>
+                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                <Grid Margin="0,0,0,14">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                    <StackPanel>
+                        <TextBlock Text="قائمة المهام" Style="{StaticResource SectionTitleStyle}" />
+                        <TextBlock Text="رتّب، أكمل، أو ابدأ جلسة تركيز مباشرة." Style="{StaticResource CaptionTextStyle}" Margin="0,5,0,0" />
+                    </StackPanel>
+                    <Button Grid.Column="1" Content="تنظيف المكتمل" Command="{Binding ClearCompletedCommand}" Style="{StaticResource SecondaryButtonStyle}" />
+                </Grid>
+
+                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <Grid>
+                        <ItemsControl ItemsSource="{Binding TasksView}" ItemTemplate="{StaticResource TaskCardTemplate}" />
+                        <Border Visibility="{Binding HasFilteredTasks, Converter={StaticResource InverseBooleanToVisibilityConverter}}"
+                                Background="#F8FAFC" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="16" Padding="36">
+                            <StackPanel>
+                                <TextBlock Text="&#xE721;" FontFamily="Segoe MDL2 Assets" FontSize="28" Foreground="{StaticResource TextMutedBrush}" HorizontalAlignment="Center" />
+                                <TextBlock Text="لا توجد نتائج مطابقة" FontSize="15" FontWeight="SemiBold" Margin="0,10,0,4" TextAlignment="Center" />
+                                <TextBlock Text="غيّر البحث أو الفلتر، أو أضف مهمة جديدة." Style="{StaticResource CaptionTextStyle}" TextAlignment="Center" />
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+                </ScrollViewer>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

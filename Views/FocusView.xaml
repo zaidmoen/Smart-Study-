@@ -1,0 +1,107 @@
+<UserControl x:Class="SmartStudy.Views.FocusView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             FlowDirection="RightToLeft">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel>
+            <StackPanel Margin="0,0,0,20">
+                <TextBlock Text="{Binding PageTitle}" Style="{StaticResource PageTitleStyle}" />
+                <TextBlock Text="{Binding PageSubtitle}" Style="{StaticResource BodyTextStyle}" Margin="0,7,0,0" />
+            </StackPanel>
+
+            <Grid>
+                <Grid.ColumnDefinitions><ColumnDefinition Width="1.7*"/><ColumnDefinition Width="1*"/></Grid.ColumnDefinitions>
+
+                <Border Grid.Column="0" Background="{StaticResource SidebarGradientBrush}" CornerRadius="24" Padding="32" Margin="0,0,10,0" Effect="{StaticResource LargeShadow}">
+                    <Grid>
+                        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Text="{Binding TimerModeLabel}" Foreground="#C7D2FE" FontSize="13" TextAlignment="Right" />
+                                <TextBlock Text="{Binding FocusTaskTitle}" Foreground="White" FontSize="20" FontWeight="SemiBold" Margin="0,7,0,0" TextWrapping="Wrap" TextAlignment="Right" />
+                                <TextBlock Text="{Binding FocusTaskSubject}" Foreground="#B9C0CE" FontSize="12" Margin="0,5,0,0" TextAlignment="Right" />
+                            </StackPanel>
+                            <ComboBox Grid.Column="1" Width="230" ItemsSource="{Binding PendingTasks}" SelectedItem="{Binding SelectedFocusTask}" DisplayMemberPath="Title" Background="#F8FFFFFF" Margin="20,0,0,0" VerticalAlignment="Top" />
+                        </Grid>
+
+                        <StackPanel Grid.Row="1" VerticalAlignment="Center" Margin="0,38">
+                            <TextBlock Text="{Binding TimerText}" Foreground="White" FontSize="92" FontWeight="Bold" HorizontalAlignment="Center" FontFamily="Bahnschrift" />
+                            <ProgressBar Value="{Binding TimerProgress}" Maximum="100" Style="{StaticResource ThinProgressBarStyle}" Height="11" Width="420" Background="#30FFFFFF" Foreground="{StaticResource AccentBrush}" Margin="0,12,0,0" />
+                            <TextBlock Text="{Binding TimerHint}" Foreground="#D0D5DD" FontSize="13" HorizontalAlignment="Center" Margin="0,16,0,0" />
+                        </StackPanel>
+
+                        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center">
+                            <Button Content="{Binding TimerActionText}" Command="{Binding StartPauseTimerCommand}" Style="{StaticResource PrimaryButtonStyle}" Width="170" />
+                            <Button Content="إعادة ضبط" Command="{Binding ResetTimerCommand}" Style="{StaticResource SecondaryButtonStyle}" Width="120" Margin="12,0" Background="#24FFFFFF" Foreground="White" BorderBrush="#30FFFFFF" />
+                            <Button Content="تخطي المرحلة" Command="{Binding SkipPhaseCommand}" Style="{StaticResource TextButtonStyle}" Foreground="#D0D5DD" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <StackPanel Grid.Column="1" Margin="10,0,0,0">
+                    <Border Style="{StaticResource CardStyle}" Padding="22" Margin="0,0,0,16">
+                        <StackPanel>
+                            <TextBlock Text="هدف التركيز اليومي" Style="{StaticResource SectionTitleStyle}" />
+                            <TextBlock Text="{Binding DailyGoalText}" FontSize="28" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,18,0,9" TextAlignment="Right" />
+                            <ProgressBar Value="{Binding DailyGoalProgress}" Maximum="100" Style="{StaticResource ThinProgressBarStyle}" Height="10" />
+                            <Grid Margin="0,18,0,0">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <StackPanel>
+                                    <TextBlock Text="هذا الأسبوع" Style="{StaticResource CaptionTextStyle}" />
+                                    <TextBlock Text="{Binding WeekFocusText}" FontSize="18" FontWeight="SemiBold" Margin="0,5,0,0" TextAlignment="Right" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock Text="سلسلة النشاط" Style="{StaticResource CaptionTextStyle}" />
+                                    <TextBlock Text="{Binding StudyStreakText}" FontSize="18" FontWeight="SemiBold" Margin="0,5,0,0" TextAlignment="Right" />
+                                </StackPanel>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Style="{StaticResource CardStyle}" Padding="22" Margin="0,0,0,16">
+                        <StackPanel>
+                            <TextBlock Text="لماذا هذه المهمة؟" Style="{StaticResource SectionTitleStyle}" />
+                            <TextBlock Text="{Binding RecommendationReason}" Style="{StaticResource BodyTextStyle}" TextWrapping="Wrap" Margin="0,12,0,0" />
+                        </StackPanel>
+                    </Border>
+
+                    <Border Style="{StaticResource CardStyle}" Padding="22">
+                        <StackPanel>
+                            <TextBlock Text="قواعد جلسة نظيفة" Style="{StaticResource SectionTitleStyle}" />
+                            <TextBlock Text="• أغلق الإشعارات قبل البدء.&#x0a;• اكتب سؤال الجلسة على ورقة.&#x0a;• لا تغيّر المهمة أثناء المؤقت.&#x0a;• سجّل نقطة البداية للجولة القادمة." Style="{StaticResource BodyTextStyle}" Margin="0,12,0,0" TextWrapping="Wrap" LineHeight="25" />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </Grid>
+
+            <Border Style="{StaticResource CardStyle}" Padding="22" Margin="0,20,0,0">
+                <StackPanel>
+                    <TextBlock Text="آخر الجلسات" Style="{StaticResource SectionTitleStyle}" />
+                    <ItemsControl ItemsSource="{Binding RecentSessions}" Margin="0,14,0,0">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Margin="0,0,0,11">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                    <Border Width="38" Height="38" CornerRadius="11" Background="#EEF2FF">
+                                        <TextBlock Text="&#xE823;" FontFamily="Segoe MDL2 Assets" Foreground="{StaticResource PrimaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    </Border>
+                                    <StackPanel Grid.Column="1" Margin="12,0" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding TaskTitle}" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" TextAlignment="Right" />
+                                        <TextBlock Text="{Binding Subject}" Style="{StaticResource CaptionTextStyle}" Margin="0,3,0,0" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding DurationMinutes, StringFormat={}{0} دقيقة}" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" TextAlignment="Right" />
+                                        <TextBlock Text="{Binding EndedAt, StringFormat={}{0:dd/MM HH:mm}}" Style="{StaticResource CaptionTextStyle}" Margin="0,3,0,0" />
+                                    </StackPanel>
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <TextBlock Visibility="{Binding HasSessions, Converter={StaticResource InverseBooleanToVisibilityConverter}}" Text="ستظهر جلساتك المكتملة هنا." Style="{StaticResource CaptionTextStyle}" TextAlignment="Center" Margin="0,16" />
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>
